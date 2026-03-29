@@ -5,17 +5,22 @@ import io
 def get_lethbridge_businesses(limit=100):
     """
     Fetches business licenses from the Lethbridge Open Data CSV endpoint
-    and filters out generic license categories.
+    and filters out generic license categories and noise.
     """
+    # Direct link to the 2026 Business License CSV
     url = "https://gis.lethbridge.ca/OpenData/DataSets/BusinessLicenses.csv"
     
-    # Generic categories often listed as Trade Names in the registry
+    # Generic categories and placeholders that cause false positives in the resolver
     BANNED_NAMES = [
         "HOME OCCUPATION", 
         "RESIDENTIAL-TENANT", 
         "NON-RESIDENT",
         "BED AND BREAKFAST",
-        "DAY CARE"
+        "DAY CARE",
+        "REDACTED",
+        "TAXI OPERATOR",
+        "DIRECT SALES",
+        "MOBILE BUSINESS"
     ]
     
     headers = {
@@ -26,6 +31,7 @@ def get_lethbridge_businesses(limit=100):
         response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         
+        # Use io.StringIO to treat the text as a file for the CSV reader
         content = response.content.decode('utf-8')
         csv_reader = csv.DictReader(io.StringIO(content))
         
@@ -35,18 +41,22 @@ def get_lethbridge_businesses(limit=100):
             if len(cleaned_results) >= limit:
                 break
             
-            # Normalize the name for comparison
+            # Normalize the name for filtering comparison
             raw_name = row.get("TRADE_NAME") or ""
-            name = raw_name.strip().upper()
+            name_upper = raw_name.strip().upper()
             
-            # Skip if the name is a generic category or empty
-            if not name or name in BANNED_NAMES:
+            # 1. Skip if empty or matches our noise list
+            if not name_upper or name_upper in BANNED_NAMES:
+                continue
+            
+            # 2. Skip specific placeholder strings (like 'REDACTED - ADDRESS')
+            if "REDACTED" in name_upper:
                 continue
                 
-            # Only ingest approved/active businesses
+            # 3. Only ingest approved/active businesses
             if row.get("LICENSE_STATUS") == "APPROVED":
                 cleaned_results.append({
-                    "tradename": raw_name.strip(), # Keep original casing for resolver
+                    "tradename": raw_name.strip(), # Keep original casing for the search engine
                     "address": row.get("ADDRESS"),
                     "status": row.get("LICENSE_STATUS")
                 })

@@ -1,0 +1,24 @@
+# --- Python Artifacts ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# --- Project Data Artifacts ---
+# We ignore the log so you don't commit 1000s of raw business rows to Git
+discovery_log.jsonl
+*.log
+*.csv
+
+# --- Environment & Keys ---
+# If you ever add an API key for a search engine or Clearbit
+.env
+.secrets
+
+# --- Editor / OS Artifacts ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
